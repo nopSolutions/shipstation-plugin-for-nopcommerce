@@ -8,6 +8,7 @@ using Nop.Plugin.Shipping.ShipStation.Services;
 using Nop.Services;
 using Nop.Services.Configuration;
 using Nop.Services.Localization;
+using Nop.Services.Messages;
 using Nop.Web.Framework;
 using Nop.Web.Framework.Controllers;
 using Nop.Web.Framework.Mvc.Filters;
@@ -17,18 +18,21 @@ namespace Nop.Plugin.Shipping.ShipStation.Controllers
     public class ShipStationController : BasePluginController
     {
         private readonly ILocalizationService _localizationService;
+        private readonly INotificationService _notificationService;
         private readonly ISettingService _settingService;
         private readonly IShipStationService _shipStationService;
         private readonly IStoreContext _storeContext;
         private readonly IWebHelper _webHelper;
 
         public ShipStationController(ILocalizationService localizationService,
+            INotificationService notificationService,
             ISettingService settingService,
             IShipStationService shipStationService,
             IStoreContext storeContext,
             IWebHelper webHelper)
         {
             _localizationService = localizationService;
+            _notificationService = notificationService;
             _settingService = settingService;
             _shipStationService = shipStationService;
             _storeContext = storeContext;
@@ -106,7 +110,7 @@ namespace Nop.Plugin.Shipping.ShipStation.Controllers
             //now clear settings cache
             _settingService.ClearCache();
 
-            SuccessNotification(_localizationService.GetResource("Admin.Plugins.Saved"));
+			_notificationService.SuccessNotification(_localizationService.GetResource("Admin.Plugins.Saved"));
             
             return Configure();
         }
