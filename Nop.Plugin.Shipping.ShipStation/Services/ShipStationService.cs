@@ -415,6 +415,7 @@ namespace Nop.Plugin.Shipping.ShipStation.Services
                     var shipment = new Shipment
                     {
                         CreatedOnUtc = DateTime.UtcNow,
+                        ShippedDateUtc = DateTime.UtcNow,
                         OrderId = order.Id,
                         TrackingNumber = trackingNumber
                     };
