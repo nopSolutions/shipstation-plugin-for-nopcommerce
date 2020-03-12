@@ -331,7 +331,7 @@ namespace Nop.Plugin.Shipping.ShipStation.Services
             WriteAddressToXml(writer, true, order.BillingAddress);
             writer.WriteEndElement();
             writer.WriteStartElement("ShipTo");
-            WriteAddressToXml(writer, false, order.BillingAddress);
+            WriteAddressToXml(writer, false, order.ShippingAddress);
             writer.WriteEndElement();
 
             writer.WriteEndElement();
