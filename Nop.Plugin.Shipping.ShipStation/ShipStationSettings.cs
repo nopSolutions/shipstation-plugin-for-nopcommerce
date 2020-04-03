@@ -38,5 +38,10 @@ namespace Nop.Plugin.Shipping.ShipStation
         /// ShipStation password
         /// </summary>
         public string Password { get; set; }
+
+        /// <summary>
+        /// Allowed ShipStation shipping options (comma separated)
+        /// </summary>
+        public string AllowedShippingOptions { get; set; }
     }
 }

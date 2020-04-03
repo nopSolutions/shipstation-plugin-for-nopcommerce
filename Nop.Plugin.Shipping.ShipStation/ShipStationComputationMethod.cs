@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Nop.Core;
 using Nop.Core.Domain.Shipping;
 using Nop.Plugin.Shipping.ShipStation.Services;
@@ -22,6 +23,7 @@ namespace Nop.Plugin.Shipping.ShipStation
         private readonly ISettingService _settingService;
         private readonly IShipStationService _shipStationService;
         private readonly IWebHelper _webHelper;
+        private readonly ShipStationSettings _shipStationSettings;
 
         #endregion
 
@@ -30,17 +32,40 @@ namespace Nop.Plugin.Shipping.ShipStation
         public ShipStationComputationMethod(ILocalizationService localizationService,
             ISettingService settingService,
             IShipStationService shipStationService,
-            IWebHelper webHelper)
+            IWebHelper webHelper,
+            ShipStationSettings shipStationSettings)
         {
             _localizationService = localizationService;
             _settingService = settingService;
             _shipStationService = shipStationService;
             _webHelper = webHelper;
+            _shipStationSettings = shipStationSettings;
         }
 
         #endregion
 
         #region Utilities
+
+        /// <summary>
+        /// Parse allowed shipping options.
+        /// </summary>
+        /// <returns>The set of option names.</returns>
+        protected virtual HashSet<string> GetAllowedOptions()
+        {
+            var allowerOptions = new HashSet<string>();
+            var options = _shipStationSettings.AllowedShippingOptions?.Split(",") ?? new string[0];
+            foreach (var option in options)
+            {
+                string name = option.Trim();
+                if (!string.IsNullOrEmpty(name))
+                {
+                    allowerOptions.Add(name);
+                }
+                
+            }
+
+            return allowerOptions;
+        }
 
         #endregion
 
@@ -72,14 +97,19 @@ namespace Nop.Plugin.Shipping.ShipStation
 
             try
             {
+                var allowerOptions = GetAllowedOptions();
                 foreach (var rate in _shipStationService.GetAllRates(getShippingOptionRequest))
                 {
-                    response.ShippingOptions.Add(new ShippingOption
+                    if (allowerOptions.Count == 0 
+                        || (allowerOptions.Count > 0 && allowerOptions.Contains(rate.ServiceName)))
                     {
-                        Description = rate.ServiceCode,
-                        Name = rate.ServiceName,
-                        Rate = rate.TotalCost
-                    });
+                        response.ShippingOptions.Add(new ShippingOption
+                        {
+                            Description = rate.ServiceCode,
+                            Name = rate.ServiceName,
+                            Rate = rate.TotalCost
+                        });
+                    }
                 }
             }
             catch (Exception e)
@@ -140,6 +170,8 @@ namespace Nop.Plugin.Shipping.ShipStation
             _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Shipping.ShipStation.Fields.SendDimensio", "Send dimensio");
             _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Shipping.ShipStation.Fields.UserName", "User name");
             _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Shipping.ShipStation.Fields.UserName.Hint", "Specify ShipStation user name");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Shipping.ShipStation.Fields.AllowedShippingOptions", "Allowed shipping options");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Shipping.ShipStation.Fields.AllowedShippingOptions.Hint", "The comma separated list of allowed shipping option names");
 
             base.Install();
         }
@@ -169,6 +201,8 @@ namespace Nop.Plugin.Shipping.ShipStation
             _localizationService.DeletePluginLocaleResource("Plugins.Shipping.ShipStation.Fields.SendDimensio");
             _localizationService.DeletePluginLocaleResource("Plugins.Shipping.ShipStation.Fields.UserName.Hint");
             _localizationService.DeletePluginLocaleResource("Plugins.Shipping.ShipStation.Fields.UserName");
+            _localizationService.DeletePluginLocaleResource("Plugins.Shipping.ShipStation.Fields.AllowedShippingOptions");
+            _localizationService.DeletePluginLocaleResource("Plugins.Shipping.ShipStation.Fields.AllowedShippingOptions.Hint");
 
             base.Uninstall();
         }
