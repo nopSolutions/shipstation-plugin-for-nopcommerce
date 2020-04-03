@@ -39,6 +39,10 @@ namespace Nop.Plugin.Shipping.ShipStation.Models
         public string Password { get; set; }
         public bool Password_OverrideForStore { get; set; }
 
+        [NopResourceDisplayName("Plugins.Shipping.ShipStation.Fields.AllowedShippingOptions")]
+        public string AllowedShippingOptions { get; set; }
+        public bool AllowedShippingOptions_OverrideForStore { get; set; }
+
         public string WebhookURL { get; set; }
     }
 }
