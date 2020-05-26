@@ -26,7 +26,7 @@ namespace Nop.Plugin.Shipping.ShipStation.Models
         public int PackingPackageVolume { get; set; }
         public bool PackingPackageVolume_OverrideForStore { get; set; }
 
-        [NopResourceDisplayName("Plugins.Shipping.ShipStation.Fields.SendDimensio")]
+        [NopResourceDisplayName("Plugins.Shipping.ShipStation.Fields.SendDimension")]
         public bool SendDimensio { get; set; }
         public bool SendDimensio_OverrideForStore { get; set; }
 
