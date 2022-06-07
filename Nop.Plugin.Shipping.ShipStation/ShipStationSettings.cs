@@ -15,9 +15,9 @@ namespace Nop.Plugin.Shipping.ShipStation
         public string ApiSecret { get; set; }
 
         /// <summary>
-        /// Set to true if need send the dimension to the ShipStation server
+        /// Set to true if need pass dimensions to the ShipStation server
         /// </summary>
-        public bool SendDimensio { get; set; }
+        public bool PassDimensions { get; set; }
 
         /// <summary>
         /// Packing type
@@ -38,10 +38,5 @@ namespace Nop.Plugin.Shipping.ShipStation
         /// ShipStation password
         /// </summary>
         public string Password { get; set; }
-
-        /// <summary>
-        /// Allowed ShipStation shipping options (comma separated)
-        /// </summary>
-        public string AllowedShippingOptions { get; set; }
     }
 }

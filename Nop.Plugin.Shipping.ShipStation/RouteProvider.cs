@@ -6,10 +6,14 @@ namespace Nop.Plugin.Shipping.ShipStation
 {
     public partial class RouteProvider : IRouteProvider
     {
-        public void RegisterRoutes(IRouteBuilder routeBuilder)
+        /// <summary>
+        /// Register routes
+        /// </summary>
+        /// <param name="endpointRouteBuilder">Route builder</param>
+        public void RegisterRoutes(IEndpointRouteBuilder endpointRouteBuilder)
         {
             //Webhook
-            routeBuilder.MapRoute("Plugin.Payments.ShipStation.WebhookHandler", "Plugins/ShipStation/Webhook",
+            endpointRouteBuilder.MapControllerRoute("Plugin.Payments.ShipStation.WebhookHandler", "Plugins/ShipStation/Webhook",
                 new { controller = "ShipStation", action = "Webhook" });
         }
 

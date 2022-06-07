@@ -54,12 +54,11 @@ namespace Nop.Plugin.Shipping.ShipStation.Controllers
                 PackingPackageVolume = shipStationSettings.PackingPackageVolume,
                 PackingType = Convert.ToInt32(shipStationSettings.PackingType),
                 PackingTypeValues = shipStationSettings.PackingType.ToSelectList(),
-                SendDimensio = shipStationSettings.SendDimensio,
+                PassDimensions = shipStationSettings.PassDimensions,
                 ActiveStoreScopeConfiguration = storeScope,
                 UserName = shipStationSettings.UserName,
                 Password = shipStationSettings.Password,
-                WebhookURL = $"{_webHelper.GetStoreLocation()}Plugins/ShipStation/Webhook",
-                AllowedShippingOptions = shipStationSettings.AllowedShippingOptions
+                WebhookURL = $"{_webHelper.GetStoreLocation()}Plugins/ShipStation/Webhook"
             };
 
             if (storeScope <= 0)
@@ -69,10 +68,9 @@ namespace Nop.Plugin.Shipping.ShipStation.Controllers
             model.ApiSecret_OverrideForStore = _settingService.SettingExists(shipStationSettings, x => x.ApiSecret, storeScope);
             model.PackingPackageVolume_OverrideForStore = _settingService.SettingExists(shipStationSettings, x => x.PackingPackageVolume, storeScope);
             model.PackingType_OverrideForStore = _settingService.SettingExists(shipStationSettings, x => x.PackingType, storeScope);
-            model.SendDimensio_OverrideForStore = _settingService.SettingExists(shipStationSettings, x => x.SendDimensio, storeScope);
+            model.PassDimensions_OverrideForStore = _settingService.SettingExists(shipStationSettings, x => x.PassDimensions, storeScope);
             model.Password_OverrideForStore = _settingService.SettingExists(shipStationSettings, x => x.Password, storeScope);
             model.UserName_OverrideForStore = _settingService.SettingExists(shipStationSettings, x => x.UserName, storeScope);
-            model.AllowedShippingOptions_OverrideForStore = _settingService.SettingExists(shipStationSettings, x => x.AllowedShippingOptions, storeScope);
 
             return View("~/Plugins/Shipping.ShipStation/Views/Configure.cshtml", model);
         }
@@ -94,10 +92,9 @@ namespace Nop.Plugin.Shipping.ShipStation.Controllers
             shipStationSettings.ApiSecret = model.ApiSecret;
             shipStationSettings.PackingPackageVolume = model.PackingPackageVolume;
             shipStationSettings.PackingType = (PackingType)model.PackingType;
-            shipStationSettings.SendDimensio = model.SendDimensio;
+            shipStationSettings.PassDimensions = model.PassDimensions;
             shipStationSettings.Password = model.Password;
             shipStationSettings.UserName = model.UserName;
-            shipStationSettings.AllowedShippingOptions = model.AllowedShippingOptions;
 
             /* We do not clear cache after each setting update.
              * This behavior can increase performance because cached settings will not be cleared 
@@ -106,10 +103,9 @@ namespace Nop.Plugin.Shipping.ShipStation.Controllers
             _settingService.SaveSettingOverridablePerStore(shipStationSettings, x => x.ApiSecret, model.ApiSecret_OverrideForStore, storeScope, false);
             _settingService.SaveSettingOverridablePerStore(shipStationSettings, x => x.PackingPackageVolume, model.PackingPackageVolume_OverrideForStore, storeScope, false);
             _settingService.SaveSettingOverridablePerStore(shipStationSettings, x => x.PackingType, model.PackingType_OverrideForStore, storeScope, false);
-            _settingService.SaveSettingOverridablePerStore(shipStationSettings, x => x.SendDimensio, model.SendDimensio_OverrideForStore, storeScope, false);
+            _settingService.SaveSettingOverridablePerStore(shipStationSettings, x => x.PassDimensions, model.PassDimensions_OverrideForStore, storeScope, false);
             _settingService.SaveSettingOverridablePerStore(shipStationSettings, x => x.Password, model.Password_OverrideForStore, storeScope, false);
             _settingService.SaveSettingOverridablePerStore(shipStationSettings, x => x.UserName, model.UserName_OverrideForStore, storeScope, false);
-            _settingService.SaveSettingOverridablePerStore(shipStationSettings, x => x.AllowedShippingOptions, model.AllowedShippingOptions_OverrideForStore, storeScope, false);
 
             //now clear settings cache
             _settingService.ClearCache();

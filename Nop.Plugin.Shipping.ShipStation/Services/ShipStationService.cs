@@ -14,6 +14,10 @@ using Nop.Core.Domain.Directory;
 using Nop.Core.Domain.Orders;
 using Nop.Core.Domain.Shipping;
 using Nop.Core.Domain.Tax;
+using Nop.Services.Caching;
+using Nop.Services.Catalog;
+using Nop.Services.Common;
+using Nop.Services.Customers;
 using Nop.Services.Directory;
 using Nop.Services.Logging;
 using Nop.Services.Orders;
@@ -27,8 +31,8 @@ namespace Nop.Plugin.Shipping.ShipStation.Services
         #region constants
 
         private const string API_URL = "https://ssapi.shipstation.com/";
-        private const string CARRIERS_CACHE_KEY = "Nop.plugins.shipping.shipstation.carrierscachekey";
-        private const string SERVICE_CACHE_KEY = "Nop.plugins.shipping.shipstation.servicecachekey.{0}";
+        private readonly CacheKey _carriersCacheKey = new CacheKey("Nop.plugins.shipping.shipstation.carrierscachekey");
+        private readonly CacheKey _serviceCacheKey = new CacheKey("Nop.plugins.shipping.shipstation.servicecachekey.{0}");
 
         private const string CONTENT_TYPE = "application/json";
         private const string DATE_FORMAT = "MM/dd/yyyy HH:mm";
@@ -41,12 +45,18 @@ namespace Nop.Plugin.Shipping.ShipStation.Services
 
         #region Fields
 
-        private readonly ICacheManager _cacheManager;
+        private readonly IAddressService _addressService;
+        private readonly ICacheKeyService _cacheKeyService;
+        private readonly ICountryService _countryService;
+        private readonly ICustomerService _customerService;
         private readonly ILogger _logger;
         private readonly IMeasureService _measureService;
         private readonly IOrderService _orderService;
+        private readonly IProductService _productService;
         private readonly IShipmentService _shipmentService;
-        private readonly IShippingService _shippingService;
+        private readonly IShippingService _shippingService;        
+        private readonly IStateProvinceService _stateProvinceService;
+        private readonly IStaticCacheManager _staticCacheManager;
         private readonly IStoreContext _storeContext;
         private readonly ShipStationSettings _shipStationSettings;
 
@@ -54,21 +64,33 @@ namespace Nop.Plugin.Shipping.ShipStation.Services
 
         #region Ctor
 
-        public ShipStationService(ICacheManager cacheManager,
+        public ShipStationService(ICacheKeyService cacheKeyService,
+            IAddressService addressService,
+            ICountryService countryService,
+            ICustomerService customerService,
             ILogger logger,
             IMeasureService measureService,
             IOrderService orderService,
+            IProductService productService,
             IShipmentService shipmentService,
             IShippingService shippingService,
+            IStateProvinceService stateProvinceService,
+            IStaticCacheManager staticCacheManager,
             IStoreContext storeContext,
             ShipStationSettings shipStationSettings)
         {
-            _cacheManager = cacheManager;
+            _addressService = addressService;
+            _cacheKeyService = cacheKeyService;
+            _countryService = countryService;
+            _customerService = customerService;
             _logger = logger;
             _measureService = measureService;
             _orderService = orderService;
+            _productService = productService;
             _shipmentService = shipmentService;
             _shippingService = shippingService;
+            _stateProvinceService = stateProvinceService;
+            _staticCacheManager = staticCacheManager;
             _storeContext = storeContext;
             _shipStationSettings = shipStationSettings;
         }
@@ -135,14 +157,14 @@ namespace Nop.Plugin.Shipping.ShipStation.Services
             {
                 CarrierCode = carrierCode,
                 FromPostalCode = getShippingOptionRequest.ZipPostalCodeFrom ?? getShippingOptionRequest.ShippingAddress.ZipPostalCode,
-                ToState = getShippingOptionRequest.ShippingAddress.StateProvince.Abbreviation,
-                ToCountry = getShippingOptionRequest.ShippingAddress.Country.TwoLetterIsoCode,
+                ToState = _stateProvinceService.GetStateProvinceByAddress(getShippingOptionRequest.ShippingAddress).Abbreviation,
+                ToCountry = _countryService.GetCountryByAddress(getShippingOptionRequest.ShippingAddress).TwoLetterIsoCode,
                 ToPostalCode = getShippingOptionRequest.ShippingAddress.ZipPostalCode,
                 ToCity = getShippingOptionRequest.ShippingAddress.City,
                 Weight = new Weight { Value = weight }
             };
 
-            if (_shipStationSettings.SendDimensio)
+            if (_shipStationSettings.PassDimensions)
             {
                 int length, height, width;
 
@@ -163,10 +185,11 @@ namespace Nop.Plugin.Shipping.ShipStation.Services
                             getShippingOptionRequest.Items[0].GetQuantity() == 1)
                         {
                             var sci = getShippingOptionRequest.Items[0].ShoppingCartItem;
+                            var product = getShippingOptionRequest.Items[0].Product;
 
                             _shippingService.GetDimensions(new List<GetShippingOptionRequest.PackageItem>
                             {
-                                new GetShippingOptionRequest.PackageItem(sci, 1)
+                                new GetShippingOptionRequest.PackageItem(sci, product, 1)
                             }, out widthTmp, out lengthTmp, out heightTmp);
 
                             length = ConvertFromPrimaryMeasureDimension(lengthTmp, usedMeasureDimension);
@@ -179,10 +202,11 @@ namespace Nop.Plugin.Shipping.ShipStation.Services
                             foreach (var item in getShippingOptionRequest.Items)
                             {
                                 var sci = item.ShoppingCartItem;
+                                var product = item.Product;
 
                                 _shippingService.GetDimensions(new List<GetShippingOptionRequest.PackageItem>
                                 {
-                                    new GetShippingOptionRequest.PackageItem(sci, 1)
+                                    new GetShippingOptionRequest.PackageItem(sci, product, 1)
                                 }, out widthTmp, out lengthTmp, out heightTmp);
 
                                 var productLength = ConvertFromPrimaryMeasureDimension(lengthTmp, usedMeasureDimension);
@@ -246,14 +270,14 @@ namespace Nop.Plugin.Shipping.ShipStation.Services
         
         protected virtual IList<Carrier> GetCarriers()
         {
-            var rez = _cacheManager.Get(CARRIERS_CACHE_KEY, () =>
+            var rez = _staticCacheManager.Get(_cacheKeyService.PrepareKeyForShortTermCache(_carriersCacheKey), () =>
             {
                 var data = SendGetRequest($"{API_URL}{LIST_CARRIERS_CMD}");
                 return TryGetError(data) ? new List<Carrier>() : JsonConvert.DeserializeObject<List<Carrier>>(data);
             });
 
             if (!rez.Any())
-                _cacheManager.Remove(CARRIERS_CACHE_KEY);
+                _staticCacheManager.Remove(_carriersCacheKey);
 
             return rez;
         }
@@ -262,12 +286,12 @@ namespace Nop.Plugin.Shipping.ShipStation.Services
         {
             var services = GetCarriers().SelectMany(carrier =>
             {
-                var apiUrl = string.Format(SERVICE_CACHE_KEY, carrier.Code);
+                var cacheKey = _cacheKeyService.PrepareKeyForShortTermCache(_serviceCacheKey, carrier.Code);
 
-                var data = _cacheManager.Get(apiUrl, () => SendGetRequest(string.Format($"{API_URL}{LIST_SERVICES_CMD}", carrier.Code)));
+                var data = _staticCacheManager.Get(cacheKey, () => SendGetRequest(string.Format($"{API_URL}{LIST_SERVICES_CMD}", carrier.Code)));
                 
                 if (!data.Any())
-                    _cacheManager.Remove(apiUrl);
+                    _staticCacheManager.Remove(cacheKey);
 
                 var serviceList = JsonConvert.DeserializeObject<List<Service>>(data);
                 
@@ -290,9 +314,9 @@ namespace Nop.Plugin.Shipping.ShipStation.Services
             writer.WriteElementString("Address1", address.Address1);
             writer.WriteElementString("Address2", address.Address2);
             writer.WriteElementString("City", address.City);
-            writer.WriteElementString("State", address.StateProvince?.Name ?? string.Empty);
+            writer.WriteElementString("State", _stateProvinceService.GetStateProvinceByAddress(address)?.Name ?? string.Empty);
             writer.WriteElementString("PostalCode ", address.ZipPostalCode);
-            writer.WriteElementString("Country", address.Country.TwoLetterIsoCode);
+            writer.WriteElementString("Country", _countryService.GetCountryByAddress(address).TwoLetterIsoCode);
         }
 
         protected virtual void WriteOrderItemsToXml(XmlTextWriter writer, ICollection<OrderItem> orderItems)
@@ -301,18 +325,21 @@ namespace Nop.Plugin.Shipping.ShipStation.Services
 
             foreach (var orderItem in orderItems)
             {
+                var product = _productService.GetProductById(orderItem.ProductId);
+                var order = _orderService.GetOrderById(orderItem.OrderId);
+
                 //is shippable
-                if (!orderItem.Product.IsShipEnabled)
+                if (!product.IsShipEnabled)
                     continue;
 
                 writer.WriteStartElement("Item");
 
-                var sku = orderItem.Product.Sku;
+                var sku = product.Sku;
 
-                writer.WriteElementString("SKU", string.IsNullOrEmpty(sku) ? orderItem.Product.Id.ToString() : sku);
-                writer.WriteElementString("Name", orderItem.Product.Name);
+                writer.WriteElementString("SKU", string.IsNullOrEmpty(sku) ? product.Id.ToString() : sku);
+                writer.WriteElementString("Name", product.Name);
                 writer.WriteElementString("Quantity", orderItem.Quantity.ToString());
-                writer.WriteElementString("UnitPrice", (orderItem.Order.CustomerTaxDisplayType == TaxDisplayType.IncludingTax ? orderItem.UnitPriceInclTax : orderItem.UnitPriceExclTax).ToString(CultureInfo.InvariantCulture));
+                writer.WriteElementString("UnitPrice", (order.CustomerTaxDisplayType == TaxDisplayType.IncludingTax ? orderItem.UnitPriceInclTax : orderItem.UnitPriceExclTax).ToString(CultureInfo.InvariantCulture));
 
                 writer.WriteEndElement();
                 writer.Flush();
@@ -328,10 +355,10 @@ namespace Nop.Plugin.Shipping.ShipStation.Services
 
             writer.WriteElementString("CustomerCode", customer.Email);
             writer.WriteStartElement("BillTo");
-            WriteAddressToXml(writer, true, order.BillingAddress);
+            WriteAddressToXml(writer, true, _addressService.GetAddressById(order.BillingAddressId));
             writer.WriteEndElement();
             writer.WriteStartElement("ShipTo");
-            WriteAddressToXml(writer, false, order.ShippingAddress);
+            WriteAddressToXml(writer, false, _addressService.GetAddressById(order.ShippingAddressId ?? order.BillingAddressId));
             writer.WriteEndElement();
 
             writer.WriteEndElement();
@@ -366,8 +393,8 @@ namespace Nop.Plugin.Shipping.ShipStation.Services
             writer.WriteElementString("OrderTotal", order.OrderTotal.ToString(CultureInfo.InvariantCulture));
             writer.WriteElementString("ShippingAmount", (order.CustomerTaxDisplayType == TaxDisplayType.IncludingTax ? order.OrderShippingInclTax : order.OrderShippingExclTax).ToString(CultureInfo.InvariantCulture));
 
-            WriteCustomerToXml(writer, order, order.Customer);
-            WriteOrderItemsToXml(writer, order.OrderItems);
+            WriteCustomerToXml(writer, order, _customerService.GetCustomerById(order.CustomerId));
+            WriteOrderItemsToXml(writer, _orderService.GetOrderItems(order.Id));
 
             writer.WriteEndElement();
             writer.Flush();
@@ -410,7 +437,9 @@ namespace Nop.Plugin.Shipping.ShipStation.Services
                 if (order == null)
                     return;
 
-                if (!order.Shipments.Any())
+                var shipments = _shipmentService.GetShipmentsByOrderId(order.Id);
+
+                if (!shipments.Any())
                 {
                     var shipment = new Shipment
                     {
@@ -422,10 +451,12 @@ namespace Nop.Plugin.Shipping.ShipStation.Services
 
                     decimal totalWeight = 0;
 
-                    foreach (var orderItem in order.OrderItems)
+                    foreach (var orderItem in _orderService.GetOrderItems(order.Id))
                     {
+                        var product = _productService.GetProductById(orderItem.ProductId);
+                        
                         //is shippable
-                        if (!orderItem.Product.IsShipEnabled)
+                        if (!product.IsShipEnabled)
                             continue;
 
                         //ensure that this product can be shipped (have at least one item to ship)
@@ -433,7 +464,7 @@ namespace Nop.Plugin.Shipping.ShipStation.Services
                         if (maxQtyToAdd <= 0)
                             continue;
 
-                        var warehouseId = orderItem.Product.WarehouseId;
+                        var warehouseId = product.WarehouseId;
 
                         //ok. we have at least one item. let's create a shipment (if it does not exist)
 
@@ -448,7 +479,8 @@ namespace Nop.Plugin.Shipping.ShipStation.Services
                             Quantity = orderItem.Quantity,
                             WarehouseId = warehouseId
                         };
-                        shipment.ShipmentItems.Add(shipmentItem);
+
+                        _shipmentService.InsertShipmentItem(shipmentItem);
                     }
 
                     shipment.TotalWeight = totalWeight;
@@ -457,7 +489,7 @@ namespace Nop.Plugin.Shipping.ShipStation.Services
                 }
                 else
                 {
-                    var shipment = order.Shipments.FirstOrDefault();
+                    var shipment = shipments.FirstOrDefault();
 
                     if (shipment == null)
                         return;

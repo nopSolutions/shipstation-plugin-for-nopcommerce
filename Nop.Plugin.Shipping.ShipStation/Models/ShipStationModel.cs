@@ -26,9 +26,9 @@ namespace Nop.Plugin.Shipping.ShipStation.Models
         public int PackingPackageVolume { get; set; }
         public bool PackingPackageVolume_OverrideForStore { get; set; }
 
-        [NopResourceDisplayName("Plugins.Shipping.ShipStation.Fields.SendDimensio")]
-        public bool SendDimensio { get; set; }
-        public bool SendDimensio_OverrideForStore { get; set; }
+        [NopResourceDisplayName("Plugins.Shipping.ShipStation.Fields.PassDimensions")]
+        public bool PassDimensions { get; set; }
+        public bool PassDimensions_OverrideForStore { get; set; }
 
         [NopResourceDisplayName("Plugins.Shipping.ShipStation.Fields.UserName")]
         public string UserName { get; set; }
@@ -38,10 +38,6 @@ namespace Nop.Plugin.Shipping.ShipStation.Models
         [DataType(DataType.Password)]
         public string Password { get; set; }
         public bool Password_OverrideForStore { get; set; }
-
-        [NopResourceDisplayName("Plugins.Shipping.ShipStation.Fields.AllowedShippingOptions")]
-        public string AllowedShippingOptions { get; set; }
-        public bool AllowedShippingOptions_OverrideForStore { get; set; }
 
         public string WebhookURL { get; set; }
     }
